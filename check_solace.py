@@ -20,7 +20,7 @@ def parse_options():
     global WARNING
 
     try:
-        long_options = ['SLOW_SUBSCRIBERS', 'help']
+        long_options = ['SLOW_SUBSCRIBERS', 'DISCARDS', 'help']
         opts, args = getopt.getopt(sys.argv[1:], "hc:w:H:U:P:p:", long_options)
     except getopt.GetoptError:
         sys.stderr.write(display_help())
@@ -37,6 +37,8 @@ def parse_options():
     for o, a in opts:
         if o in ('-SLOW_SUBSCRIBERS', "--SLOW_SUBSCRIBERS"):
             MODE = "SLOW_SUBSCRIBERS"
+        if o in ('-DISCARDS', "--DISCARDS"):
+            MODE = "DISCARDS"
         if o in ('-h', '--help'):
             sys.stdout.write(display_help())
             sys.exit(0)
@@ -91,7 +93,8 @@ def display_help():
                '  -P <password>               Solace SEMP password\n' \
                '  -c <value>                  * Critical value\n'\
                '  -w <value>                  * Warning value\n'\
-               '  --SLOW_SUBSCRIBERS          [*] Check Slow Subscribers\n\n'
+               '  --SLOW_SUBSCRIBERS          [*] Check Slow Subscribers\n'\
+               '  --DISCARDS                  [*] Check ingress/egress discards\n\n'
     return help_msg
 
 
@@ -100,19 +103,29 @@ def solace_slow_subscribers():
     message = "<rpc semp-version='soltr/7_1'><show><client><name>*</name><slow-subscriber></slow-subscriber></client></show></rpc>"
     r = requests.post(call_path, auth=(SOLACE_CLI_USERNAME, SOLACE_CLI_PASSWORD), data=message)
     output = minidom.parseString(r.content)
-
     if output.getElementsByTagName('client'):
         clients = output.getElementsByTagName('client-address')
         for client in clients:
             slow_subscribers += 1
-
     status = "OK"
     if int(slow_subscribers) >= int(CRITICAL):
         status = "Critical"
     elif int(slow_subscribers) >= int(WARNING):
         status = "Warning"
-
     print "SLOW_SUBSCRIBERS", status, "-", "Slow_Subscribers = %s|Slow_Subscribers=%s;%s;%s;0" % (slow_subscribers, slow_subscribers, WARNING, CRITICAL)
+
+
+def solace_discards():
+    ingress_discards = 0
+    egress_discards = 0
+    message = "<rpc semp-version='soltr/7_1'><show><stats><client></client></stats></show></rpc>"
+    r = requests.post(call_path, auth=(SOLACE_CLI_USERNAME, SOLACE_CLI_PASSWORD), data=message)
+    output = minidom.parseString(r.content)
+    if output.getElementsByTagName('client'):
+        ingress_discards = output.getElementsByTagName('total-ingress-discards')[0].firstChild.nodeValue
+        egress_discards = output.getElementsByTagName('total-egress-discards')[0].firstChild.nodeValue
+    status = "OK"
+    print "DISCARDS", status, "-", "Ingress_Discards = %s Egress_Discards = %s|Ingress_Discards=%s;%s;%s;0 Egress_Discards=%s;%s;%s;0" % (ingress_discards, egress_discards, ingress_discards, WARNING, CRITICAL, egress_discards, WARNING, CRITICAL)
 
 
 
@@ -132,3 +145,5 @@ if __name__ == '__main__':
     call_path = "http://" + SOLACE_HOST + ":" + str(SEMP_PORT) + SEMP_PATH
     if MODE == "SLOW_SUBSCRIBERS":
         solace_slow_subscribers()
+    if MODE == "DISCARDS":
+        solace_discards()
