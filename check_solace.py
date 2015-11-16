@@ -25,7 +25,7 @@ def parse_options():
     global WARNING
 
     try:
-        long_options = ['SLOW_SUBSCRIBERS', 'DISCARDS', 'DISCARD-RATE', 'help']
+        long_options = ['SLOW_SUBSCRIBERS', 'DISCARDS', 'DISCARD-RATE', 'EGRESS-DISCARDS', 'help']
         opts, args = getopt.getopt(sys.argv[1:], "hc:w:H:U:P:p:", long_options)
     except getopt.GetoptError:
         sys.stderr.write(display_help())
@@ -46,6 +46,8 @@ def parse_options():
             MODE = "DISCARDS"
         if o in ('-DISCARD-RATE', "--DISCARD-RATE"):
             MODE = "DISCARD-RATE"
+        if o in ('-EGRESS-DISCARDS', "--EGRESS-DISCARDS"):
+            MODE = "EGRESS-DISCARDS"
         if o in ('-h', '--help'):
             sys.stdout.write(display_help())
             sys.exit(0)
@@ -93,16 +95,18 @@ def display_help():
     help_msg = 'check_solace - checks Solace Systems Message Router statistics\n\nUsage: check_solace [OPTION]...\n' \
                '\n' \
                '* denotes a required option\n\n'\
-               '  -h, -help                   Show this help\n' \
-               '  -H <hostname>               * Solace hostname or IP address\n' \
-               '  -p <port>                   Solace SEMP port\n' \
-               '  -U <username>               Solace SEMP username\n' \
-               '  -P <password>               Solace SEMP password\n' \
-               '  -c <value>                  * Critical value\n'\
-               '  -w <value>                  * Warning value\n'\
-               '  --SLOW_SUBSCRIBERS          [*] Check Slow Subscribers\n'\
-               '  --DISCARDS                  [*] Check ingress/egress discards\n'\
-               '  --DISCARD-RATE              [*] Calculates 1-min ingress/egress discard rate\n\n'
+               '  -h, -help                     Show this help\n' \
+               '  -H <hostname>                 * Solace hostname or IP address\n' \
+               '  -p <port>                     Solace SEMP port\n' \
+               '  -U <username>                 Solace SEMP username\n' \
+               '  -P <password>                 Solace SEMP password\n' \
+               '  -c <value>                    * Critical value\n'\
+               '  -w <value>                    * Warning value\n'\
+               '  --SLOW_SUBSCRIBERS            [*] Check Slow Subscribers\n'\
+               '  --DISCARDS                    [*] Check ingress/egress discards\n'\
+               '  --DISCARD-RATE                [*] Calculates 1-min ingress/egress discard rate\n'\
+               '  --EGRESS-DISCARDS             [*] Checks egress discards\n\n'
+
     return help_msg
 
 
@@ -120,7 +124,8 @@ def solace_slow_subscribers():
         status = "Critical"
     elif int(slow_subscribers) >= int(WARNING):
         status = "Warning"
-    print "SLOW_SUBSCRIBERS", status, "-", "Slow_Subscribers = %s|Slow_Subscribers=%s;%s;%s;0" % (slow_subscribers, slow_subscribers, WARNING, CRITICAL)
+    print "SLOW_SUBSCRIBERS", status, "-", "Slow_Subscribers = %s|Slow_Subscribers=%s;%s;%s;0" \
+                                           % (slow_subscribers, slow_subscribers, WARNING, CRITICAL)
 
 
 def solace_discards():
@@ -133,7 +138,36 @@ def solace_discards():
         ingress_discards = output.getElementsByTagName('total-ingress-discards')[0].firstChild.nodeValue
         egress_discards = output.getElementsByTagName('total-egress-discards')[0].firstChild.nodeValue
     status = "OK"
-    print "DISCARDS", status, "-", "Ingress_Discards = %s Egress_Discards = %s|Ingress_Discards=%s;%s;%s;0 Egress_Discards=%s;%s;%s;0" % (ingress_discards, egress_discards, ingress_discards, WARNING, CRITICAL, egress_discards, WARNING, CRITICAL)
+    print "DISCARDS", status, "-", "Ingress_Discards = %s Egress_Discards = %s|Ingress_Discards=%s;%s;%s;0 " \
+                                   "Egress_Discards=%s;%s;%s;0" \
+                                   % (ingress_discards, egress_discards, ingress_discards, WARNING, CRITICAL,
+                                      egress_discards, WARNING, CRITICAL)
+
+
+
+
+def solace_egress_discards():
+    transmit_congestion_discards = 0
+    compression_congestion_discards = 0
+    egress_discards = 0
+    msg_spool_discards = 0
+    message = "<rpc semp-version='soltr/7_1'><show><stats><client><detail></detail></client></stats></show></rpc>"
+    r = requests.post(call_path, auth=(SOLACE_CLI_USERNAME, SOLACE_CLI_PASSWORD), data=message)
+    output = minidom.parseString(r.content)
+    if output.getElementsByTagName('client'):
+        egress_discards = output.getElementsByTagName('total-egress-discards')[0].firstChild.nodeValue
+        transmit_congestion_discards = output.getElementsByTagName('transmit-congestion')[0].firstChild.nodeValue
+        compression_congestion_discards = output.getElementsByTagName('compression-congestion')[0].firstChild.nodeValue
+        msg_spool_discards = output.getElementsByTagName('msg-spool-egress-discards')[0].firstChild.nodeValue
+    status = "OK"
+    print "DISCARDS", status, "-", "Total_Egress_Discards = %s Transmit_Congestion_Discards = %s " \
+                                   "Compression_Congestion_Discards = %s Msg_Spool_Egress_Discards = " \
+                                   "%s|Total Egress_Discards=%s;%s;%s;0 Transmit_Congestion_Discards=%s;%s;%s;0 " \
+                                   "Compression_Congestion_Discards=%s;%s;%s;0 Msg_Spool_Egress_Discards=%s;%s;%s;0" % \
+                                   (egress_discards, transmit_congestion_discards, compression_congestion_discards,
+                                    msg_spool_discards, egress_discards, WARNING, CRITICAL,
+                                    transmit_congestion_discards, WARNING, CRITICAL, compression_congestion_discards,
+                                    WARNING, CRITICAL, msg_spool_discards, WARNING, CRITICAL)
 
 
 def solace_discard_rate():
@@ -197,7 +231,11 @@ def solace_discard_rate():
             status = "Critical"
         elif float(ingress_discards_rate) >= float(WARNING) or float(egress_discards_rate) >= float(WARNING):
             status = "Warning"
-        print "DISCARD-RATE", status, "-", "Ingress_Discards/%ssec=%s Egress_Discards/%ssec=%s|Ingress_Discards_Rate=%s;%s;%s;0 Egress_Discards_Rate=%s;%s;%s;0" % (time_spread, ingress_discards_rate, time_spread, egress_discards_rate, ingress_discards_rate, WARNING, CRITICAL, egress_discards_rate, WARNING, CRITICAL)
+        print "DISCARD-RATE", status, "-", "Ingress_Discards/%ssec=%s Egress_Discards/%ssec=%s|" \
+                                           "Ingress_Discards_Rate=%s;%s;%s;0 Egress_Discards_Rate=%s;%s;%s;0" % \
+                                           (time_spread, ingress_discards_rate, time_spread, egress_discards_rate,
+                                            ingress_discards_rate, WARNING, CRITICAL,
+                                            egress_discards_rate, WARNING, CRITICAL)
 
     else:
         # cache file doesn't exist - create file and write stats
@@ -232,3 +270,5 @@ if __name__ == '__main__':
         solace_discards()
     if MODE == "DISCARD-RATE":
         solace_discard_rate()
+    if MODE == "EGRESS-DISCARDS":
+        solace_egress_discards()
