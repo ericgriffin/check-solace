@@ -4,14 +4,16 @@
 check_solace - Checks Solace Systems Message Router statistics
 """
 
-import sys
-import os
 import getopt
-import requests
+import os
+import sys
 import tempfile
 import time
-from xml.dom import minidom
 from datetime import datetime
+from xml.dom import minidom
+
+import requests
+
 
 def parse_options():
     global SOLACE_HOST
