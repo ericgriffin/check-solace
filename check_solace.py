@@ -25,7 +25,12 @@ def parse_options():
     global WARNING
 
     try:
-        long_options = ['SLOW_SUBSCRIBERS', 'DISCARDS', 'DISCARD-RATE', 'EGRESS-DISCARDS', 'help']
+        long_options = ['SLOW_SUBSCRIBERS', 'CLIENT-MESSAGES-TOTAL', 'DISCARDS', 'DISCARD-RATE', 'EGRESS-DISCARDS',
+                        'INGRESS-DISCARDS', 'CLIENT-MESSAGES-DATA', 'CLIENT-MESSAGES-PERSISTENT',
+                        'CLIENT-MESSAGES-NONPERSISTENT', 'CLIENT-MESSAGES-DIRECT', 'CLIENT-MESSAGES-CONTROL',
+                        'CLIENT-MESSAGES-RATE', 'CLIENT-BYTES-TOTAL', 'CLIENT-BYTES-DATA', 'CLIENT-BYTES-PERSISTENT',
+                        'CLIENT-BYTES-NONPERSISTENT', 'CLIENT-BYTES-DIRECT', 'CLIENT-BYTES-CONTROL',
+                        'CLIENT-BYTES-RATE', 'help']
         opts, args = getopt.getopt(sys.argv[1:], "hc:w:H:U:P:p:", long_options)
     except getopt.GetoptError:
         sys.stderr.write(display_help())
@@ -42,12 +47,44 @@ def parse_options():
     for o, a in opts:
         if o in ('-SLOW_SUBSCRIBERS', "--SLOW_SUBSCRIBERS"):
             MODE = "SLOW_SUBSCRIBERS"
+        if o in ('-CLIENT-MESSAGES-TOTAL', "--CLIENT-MESSAGES-TOTAL"):
+            MODE = "CLIENT-MESSAGES-TOTAL"
         if o in ('-DISCARDS', "--DISCARDS"):
             MODE = "DISCARDS"
         if o in ('-DISCARD-RATE', "--DISCARD-RATE"):
             MODE = "DISCARD-RATE"
         if o in ('-EGRESS-DISCARDS', "--EGRESS-DISCARDS"):
             MODE = "EGRESS-DISCARDS"
+        if o in ('-INGRESS-DISCARDS', "--INGRESS-DISCARDS"):
+            MODE = "INGRESS-DISCARDS"
+        if o in ('-CLIENT-MESSAGES-DATA', "--CLIENT-MESSAGES-DATA"):
+            MODE = "CLIENT-MESSAGES-DATA"
+        if o in ('-CLIENT-MESSAGES-PERSISTENT', "--CLIENT-MESSAGES-PERSISTENT"):
+            MODE = "CLIENT-MESSAGES-PERSISTENT"
+        if o in ('-CLIENT-MESSAGES-NONPERSISTENT', "--CLIENT-MESSAGES-NONPERSISTENT"):
+            MODE = "CLIENT-MESSAGES-NONPERSISTENT"
+        if o in ('-CLIENT-MESSAGES-DIRECT', "--CLIENT-MESSAGES-DIRECT"):
+            MODE = "CLIENT-MESSAGES-DIRECT"
+        if o in ('-CLIENT-MESSAGES-CONTROL', "--CLIENT-MESSAGES-CONTROL"):
+            MODE = "CLIENT-MESSAGES-CONTROL"
+        if o in ('-CLIENT-MESSAGES-RATE', "--CLIENT-MESSAGES-RATE"):
+            MODE = "CLIENT-MESSAGES-RATE"
+        if o in ('-CLIENT-BYTES-TOTAL', "--CLIENT-BYTES-TOTAL"):
+            MODE = "CLIENT-BYTES-TOTAL"
+        if o in ('-CLIENT-BYTES-DATA', "--CLIENT-BYTES-DATA"):
+            MODE = "CLIENT-BYTES-DATA"
+        if o in ('-CLIENT-BYTES-PERSISTENT', "--CLIENT-BYTES-PERSISTENT"):
+            MODE = "CLIENT-BYTES-PERSISTENT"
+        if o in ('-CLIENT-BYTES-NONPERSISTENT', "--CLIENT-BYTES-NONPERSISTENT"):
+            MODE = "CLIENT-BYTES-NONPERSISTENT"
+        if o in ('-CLIENT-BYTES-DIRECT', "--CLIENT-BYTES-DIRECT"):
+            MODE = "CLIENT-BYTES-DIRECT"
+        if o in ('-CLIENT-BYTES-CONTROL', "--CLIENT-BYTES-CONTROL"):
+            MODE = "CLIENT-BYTES-CONTROL"
+        if o in ('-CLIENT-BYTES-RATE', "--CLIENT-BYTES-RATE"):
+            MODE = "CLIENT-BYTES-RATE"
+
+
         if o in ('-h', '--help'):
             sys.stdout.write(display_help())
             sys.exit(0)
@@ -95,16 +132,31 @@ def display_help():
     help_msg = 'check_solace - checks Solace Systems Message Router statistics\n\nUsage: check_solace [OPTION]...\n' \
                '\n' \
                '* denotes a required option\n\n'\
-               '  -h, -help                     Show this help\n' \
-               '  -H <hostname>                 * Solace hostname or IP address\n' \
-               '  -p <port>                     Solace SEMP port\n' \
-               '  -U <username>                 Solace SEMP username\n' \
-               '  -P <password>                 Solace SEMP password\n' \
-               '  -c <value>                    * Critical value\n'\
-               '  -w <value>                    * Warning value\n'\
-               '  --SLOW_SUBSCRIBERS            [*] Check Slow Subscribers\n'\
+               '  -h, -help                            Show this help\n' \
+               '  -H <hostname>                        * Solace hostname or IP address\n' \
+               '  -p <port>                            Solace SEMP port\n' \
+               '  -U <username>                        Solace SEMP username\n' \
+               '  -P <password>                        Solace SEMP password\n' \
+               '  -c <value>                           * Critical value\n'\
+               '  -w <value>                           * Warning value\n'\
+               '  --SLOW_SUBSCRIBERS                   [*] Check slow subscriber count\n'\
+               '  --CLIENT-MESSAGES-TOTAL              [*] Check total message count\n'\
+               '  --CLIENT-MESSAGES-DATA               [*] Check total message count\n'\
+               '  --CLIENT-MESSAGES-PERSISTENT         [*] Check persistent message count\n'\
+               '  --CLIENT-MESSAGES-NONPERSISTENT      [*] Check non-persistent message count\n'\
+               '  --CLIENT-MESSAGES-DIRECT             [*] Check direct message count\n'\
+               '  --CLIENT-MESSAGES-CONTROL            [*] Check control message count\n'\
+               '  --CLIENT-MESSAGES-RATE               [*] Check 60-second message rate\n'\
+               '  --CLIENT-BYTES-TOTAL                 [*] Check total message bytes\n'\
+               '  --CLIENT-BYTES-DATA                  [*] Check data message bytes\n'\
+               '  --CLIENT-BYTES-PERSISTENT            [*] Check persistent message bytes\n'\
+               '  --CLIENT-BYTES-NONPERSISTENT         [*] Check non-persistent message bytes\n'\
+               '  --CLIENT-BYTES-DIRECT                [*] Check direct message bytes\n'\
+               '  --CLIENT-BYTES-CONTROL               [*] Check control message bytes\n'\
+               '  --CLIENT-BYTES-RATE                  [*] Check 60-second message bandwidth\n'\
                '  --DISCARDS                    [*] Check ingress/egress discards\n'\
                '  --DISCARD-RATE                [*] Calculates 1-min ingress/egress discard rate\n'\
+               '  --INGRESS-DISCARDS            [*] Checks ingress discards\n'\
                '  --EGRESS-DISCARDS             [*] Checks egress discards\n\n'
 
     return help_msg
@@ -144,8 +196,6 @@ def solace_discards():
                                       egress_discards, WARNING, CRITICAL)
 
 
-
-
 def solace_egress_discards():
     transmit_congestion_discards = 0
     compression_congestion_discards = 0
@@ -160,14 +210,38 @@ def solace_egress_discards():
         compression_congestion_discards = output.getElementsByTagName('compression-congestion')[0].firstChild.nodeValue
         msg_spool_discards = output.getElementsByTagName('msg-spool-egress-discards')[0].firstChild.nodeValue
     status = "OK"
-    print "DISCARDS", status, "-", "Total_Egress_Discards = %s Transmit_Congestion_Discards = %s " \
-                                   "Compression_Congestion_Discards = %s Msg_Spool_Egress_Discards = " \
-                                   "%s|Total Egress_Discards=%s;%s;%s;0 Transmit_Congestion_Discards=%s;%s;%s;0 " \
+    print "EGRESS-DISCARDS", status, "-", "Total_Egress_Discards = %s Transmit_Congestion_Discards = %s " \
+                                   "Compression_Congestion_Discards = %s Msg_Spool_Egress_Discards = %s|" \
+                                   "Total_Egress_Discards=%s;%s;%s;0 Transmit_Congestion_Discards=%s;%s;%s;0 " \
                                    "Compression_Congestion_Discards=%s;%s;%s;0 Msg_Spool_Egress_Discards=%s;%s;%s;0" % \
                                    (egress_discards, transmit_congestion_discards, compression_congestion_discards,
                                     msg_spool_discards, egress_discards, WARNING, CRITICAL,
                                     transmit_congestion_discards, WARNING, CRITICAL, compression_congestion_discards,
                                     WARNING, CRITICAL, msg_spool_discards, WARNING, CRITICAL)
+
+
+def solace_ingress_discards():
+    ingress_discards = 0
+    no_subscription_match = 0
+    msg_spool_discards = 0
+    msg_spool_congestion = 0
+    message = "<rpc semp-version='soltr/7_1'><show><stats><client><detail></detail></client></stats></show></rpc>"
+    r = requests.post(call_path, auth=(SOLACE_CLI_USERNAME, SOLACE_CLI_PASSWORD), data=message)
+    output = minidom.parseString(r.content)
+    if output.getElementsByTagName('client'):
+        ingress_discards = output.getElementsByTagName('total-ingress-discards')[0].firstChild.nodeValue
+        no_subscription_match = output.getElementsByTagName('no-subscription-match')[0].firstChild.nodeValue
+        msg_spool_discards = output.getElementsByTagName('msg-spool-discards')[0].firstChild.nodeValue
+        msg_spool_congestion = output.getElementsByTagName('message-spool-congestion')[0].firstChild.nodeValue
+    status = "OK"
+    print "INGRESS-DISCARDS", status, "-", "Total_Ingress_Discards = %s No_Subscription_Match = %s " \
+                                   "Msg_Spool_Discards = %s Msg_Spool_Congestion = %s|" \
+                                   "Total_Ingress_Discards=%s;%s;%s;0 No_Subscription_Match=%s;%s;%s;0 " \
+                                   "Msg_Spool_Ingress_Discards=%s;%s;%s;0 Msg_Spool_Congestion=%s;%s;%s;0" % \
+                                   (ingress_discards, no_subscription_match, msg_spool_discards,
+                                    msg_spool_congestion, ingress_discards, WARNING, CRITICAL,
+                                    no_subscription_match, WARNING, CRITICAL, msg_spool_discards,
+                                    WARNING, CRITICAL, msg_spool_congestion, WARNING, CRITICAL)
 
 
 def solace_discard_rate():
@@ -236,7 +310,6 @@ def solace_discard_rate():
                                            (time_spread, ingress_discards_rate, time_spread, egress_discards_rate,
                                             ingress_discards_rate, WARNING, CRITICAL,
                                             egress_discards_rate, WARNING, CRITICAL)
-
     else:
         # cache file doesn't exist - create file and write stats
         cache_file = open(cache_filename, 'w')
@@ -248,6 +321,22 @@ def solace_discard_rate():
         cache_file.close()
         print "First run - creating cache file", cache_filename, "for discard rate calculation"
         return
+
+
+def solace_client_in_out(sempvar_in, sempvar_out, heading, var_disp):
+    data_in = 0
+    data_out = 0
+    message = "<rpc semp-version='soltr/7_1'><show><stats><client></client></stats></show></rpc>"
+    r = requests.post(call_path, auth=(SOLACE_CLI_USERNAME, SOLACE_CLI_PASSWORD), data=message)
+    output = minidom.parseString(r.content)
+    if output.getElementsByTagName('client'):
+        data_in = output.getElementsByTagName(sempvar_in)[0].firstChild.nodeValue
+        data_out = output.getElementsByTagName(sempvar_out)[0].firstChild.nodeValue
+    status = "OK"
+    print heading, status, "-", "%s_IN = %s %s_OUT = %s|%s_IN=%s;%s;%s;0 " \
+                                   "%s_OUT=%s;%s;%s;0" \
+                                   % (var_disp, data_in, var_disp, data_out, var_disp, data_in, WARNING, CRITICAL,
+                                      var_disp, data_out, WARNING, CRITICAL)
 
 
 if __name__ == '__main__':
@@ -272,3 +361,33 @@ if __name__ == '__main__':
         solace_discard_rate()
     if MODE == "EGRESS-DISCARDS":
         solace_egress_discards()
+    if MODE == "INGRESS-DISCARDS":
+        solace_ingress_discards()
+    if MODE == "CLIENT-MESSAGES-TOTAL":
+        solace_client_in_out('total-client-messages-received', 'total-client-messages-sent', "CLIENT_TOTAL_MESSAGES", "Client_Total_Messages")
+    if MODE == "CLIENT-MESSAGES-DATA":
+        solace_client_in_out('client-data-messages-received', 'client-data-messages-sent', "CLIENT_DATA_MESSAGES", "Client_Data_Messages")
+    if MODE == "CLIENT-MESSAGES-PERSISTENT":
+        solace_client_in_out('client-persistent-messages-received', 'client-persistent-messages-sent', "CLIENT_PERSISTENT_MESSAGES", "Client_Persistent_Messages")
+    if MODE == "CLIENT-MESSAGES-NONPERSISTENT":
+        solace_client_in_out('client-non-persistent-messages-received', 'client-non-persistent-messages-sent', "CLIENT_NON_PERSISTENT_MESSAGES", "Client_Non_Persistent_Messages")
+    if MODE == "CLIENT-MESSAGES-DIRECT":
+        solace_client_in_out('client-direct-messages-received', 'client-direct-messages-sent', "CLIENT_DIRECT_MESSAGES", "Client_Direct_Messages")
+    if MODE == "CLIENT-MESSAGES-CONTROL":
+        solace_client_in_out('client-control-messages-received', 'client-control-messages-sent', "CLIENT_CONTROL_MESSAGES", "Client_Control_Messages")
+    if MODE == "CLIENT-MESSAGES-RATE":
+        solace_client_in_out('average-ingress-rate-per-minute', 'average-egress-rate-per-minute', "MESSAGE_RATE_60s", "Message_Rate_60s")
+    if MODE == "CLIENT-BYTES-TOTAL":
+        solace_client_in_out('total-client-bytes-received', 'total-client-bytes-sent', "CLIENT_TOTAL_BYTES", "Client_Total_Bytes")
+    if MODE == "CLIENT-BYTES-DATA":
+        solace_client_in_out('client-data-bytes-received', 'client-data-bytes-sent', "CLIENT_DATA_BYTES", "Client_Data_Bytes")
+    if MODE == "CLIENT-BYTES-PERSISTENT":
+        solace_client_in_out('client-persistent-bytes-received', 'client-persistent-bytes-sent', "CLIENT_PERSISTENT_BYTES", "Client_Persistent_Bytes")
+    if MODE == "CLIENT-BYTES-NONPERSISTENT":
+        solace_client_in_out('client-non-persistent-bytes-received', 'client-non-persistent-bytes-sent', "CLIENT_NON_PERSISTENT_BYTES", "Client_Non_Persistent_Bytes")
+    if MODE == "CLIENT-BYTES-DIRECT":
+        solace_client_in_out('client-direct-bytes-received', 'client-direct-bytes-sent', "CLIENT_DIRECT_BYTES", "Client_Direct_Bytes")
+    if MODE == "CLIENT-BYTES-CONTROL":
+        solace_client_in_out('client-control-bytes-received', 'client-control-bytes-sent', "CLIENT_CONTROL_BYTES", "Client_Control_Bytes")
+    if MODE == "CLIENT-BYTES-RATE":
+        solace_client_in_out('average-ingress-byte-rate-per-minute', 'average-egress-byte-rate-per-minute', "MESSAGE_BYTE_RATE_60s", "Message_Byte_Rate_60s")
